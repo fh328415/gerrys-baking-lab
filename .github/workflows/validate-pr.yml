@@ -1,0 +1,281 @@
+# ==============================================================================
+# WORKFLOW: Validate Pull Request
+# ==============================================================================
+#
+# This workflow runs every time someone opens or updates a Pull Request
+# targeting the main branch.
+#
+# Think of it as the lab's Quality Control officer — before any new baking
+# session log gets added to the official record, it checks that the log
+# meets our documentation standards.
+#
+# KEY CONCEPT ─ What is a "workflow"?
+#   A workflow is an automated process defined in a YAML file inside
+#   .github/workflows/. GitHub reads these files and runs them on its own
+#   servers (called "runners") whenever the trigger event you specify occurs.
+#   You don't need to run or schedule anything yourself.
+# ==============================================================================
+
+name: Validate Pull Request
+
+# ------------------------------------------------------------------------------
+# TRIGGER
+#
+# KEY CONCEPT ─ The `on:` block defines WHEN this workflow runs.
+# `pull_request` means: "run this workflow when a PR is opened, updated,
+# or new commits are pushed to an existing PR targeting main."
+# ------------------------------------------------------------------------------
+on:
+  pull_request:
+    branches:
+      - main
+
+# ------------------------------------------------------------------------------
+# JOBS
+#
+# KEY CONCEPT ─ A workflow contains one or more "jobs". Each job runs on a
+# separate virtual machine (runner) that GitHub provisions fresh for every run.
+# Jobs run in parallel by default; you can add `needs:` to chain them.
+# ------------------------------------------------------------------------------
+jobs:
+
+  validate:
+
+    # KEY CONCEPT ─ `runs-on` chooses the operating system for the runner.
+    # ubuntu-latest is the most common choice: fast, free for public repos,
+    # and pre-loaded with Python, git, bash, and many other tools.
+    runs-on: ubuntu-latest
+
+    # --------------------------------------------------------------------------
+    # STEPS
+    #
+    # KEY CONCEPT ─ Steps are individual tasks that run in order inside a job.
+    # A step either runs a shell command (`run:`) or uses a pre-built, shareable
+    # action (`uses:`). Think of actions like functions from a library.
+    # --------------------------------------------------------------------------
+    steps:
+
+      # ------------------------------------------------------------------------
+      # STEP 1 ─ Check out the repository
+      #
+      # KEY CONCEPT ─ `uses: actions/checkout@v4` is a pre-built action
+      # maintained by GitHub. It downloads your repository's code onto the
+      # runner so that subsequent steps can read your files.
+      # Without this step, the runner has no access to your code at all.
+      #
+      # `fetch-depth: 0` means "download the complete git history", not just
+      # the latest snapshot. We need full history so we can compare branches
+      # and read commit messages accurately.
+      # ------------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ------------------------------------------------------------------------
+      # STEP 2 ─ Check commit message format
+      #
+      # KEY CONCEPT ─ `run:` executes shell (bash) commands directly on the
+      # runner — exactly like typing in your own terminal.
+      #
+      # We enforce a simple commit message convention so the log history stays
+      # readable and machine-parseable:
+      #
+      #   <type>: <short description>
+      #
+      #   log:    Submitting a new baking session log         (primary action)
+      #   amend:  Correcting or updating an existing log
+      #   docs:   Updating README or other documentation
+      #   chore:  Workflow or configuration maintenance
+      #
+      # Examples:
+      #   log: add oat flour experiment 2026-06-10
+      #   amend: fix butter quantity in session 2026-05-14
+      #   docs: update PR instructions in README
+      # ------------------------------------------------------------------------
+      - name: "Check 1 — Commit message format"
+        run: |
+          # Retrieve the subject line of the most recent commit on this PR branch.
+          # `github.event.pull_request.head.sha` is the exact commit SHA that
+          # GitHub recorded when this PR event was triggered.
+          COMMIT_MSG=$(git log -1 --format="%s" "${{ github.event.pull_request.head.sha }}")
+          echo "Commit message: \"$COMMIT_MSG\""
+          echo ""
+
+          # -E enables extended regular expressions (ERE).
+          # -q means "quiet" — grep returns exit code 0 (pass) or 1 (fail)
+          # without printing anything itself.
+          # Pattern: must start with one of our four types, followed by ": ",
+          # followed by at least one character of description.
+          if ! echo "$COMMIT_MSG" | grep -qE '^(log|amend|docs|chore): .+'; then
+            echo "❌  CHECK FAILED: Commit message does not follow the required format."
+            echo ""
+            echo "    Received : \"$COMMIT_MSG\""
+            echo "    Expected : <type>: <description>"
+            echo "    Types    : log | amend | docs | chore"
+            echo ""
+            echo "    Example  : log: add chocolate chip session 2026-06-05"
+            exit 1
+          fi
+
+          echo "✅  Commit message format is valid."
+
+      # ------------------------------------------------------------------------
+      # STEP 3 ─ Check that exactly one log file was added
+      #
+      # KEY CONCEPT ─ `git diff` compares two states of the repository.
+      # --diff-filter=A means "only show files that were Added (not modified
+      # or deleted)". We scope it to the logs/ directory.
+      #
+      # We enforce one-log-per-PR so that every PR maps to a single, atomic
+      # unit of work — just like a single experiment in a lab notebook.
+      # This also makes the git history clean and easy to browse.
+      # ------------------------------------------------------------------------
+      - name: "Check 2 — Exactly one log file added"
+        run: |
+          # Compare what changed between main (the base) and this PR's branch.
+          # origin/${{ github.base_ref }} is the tip of the target branch (main).
+          ADDED_LOGS=$(git diff --name-only --diff-filter=A \
+            "origin/${{ github.base_ref }}" HEAD -- 'logs/')
+
+          echo "Files added inside logs/:"
+          echo "${ADDED_LOGS:-  (none)"}"
+          echo ""
+
+          # Count non-empty lines (|| true prevents exit code 1 when count is 0)
+          COUNT=$(echo "$ADDED_LOGS" | grep -c '\S' || true)
+
+          if [ "$COUNT" -eq 0 ]; then
+            echo "❌  CHECK FAILED: No file was added inside the logs/ directory."
+            echo "    Please add your session log to logs/ and try again."
+            exit 1
+          fi
+
+          if [ "$COUNT" -gt 1 ]; then
+            echo "❌  CHECK FAILED: $COUNT log files were added in this PR."
+            echo "    Each Pull Request must contain exactly ONE baking session log."
+            echo "    Please open a separate PR for each session."
+            exit 1
+          fi
+
+          echo "✅  Exactly one log file added."
+
+          # KEY CONCEPT ─ GITHUB_ENV is a special file that lets you pass
+          # variables between steps in the same job. Anything written here as
+          # KEY=VALUE becomes available as $KEY in all subsequent steps.
+          echo "LOG_FILE=$ADDED_LOGS" >> "$GITHUB_ENV"
+
+      # ------------------------------------------------------------------------
+      # STEP 4 ─ Check log filename naming convention
+      #
+      # KEY CONCEPT ─ We read $LOG_FILE from GITHUB_ENV (set in Step 3).
+      # Environment variables set via GITHUB_ENV are automatically available
+      # in every step that follows.
+      #
+      # Naming convention: session-YYYY-MM-DD.md
+      # Same-day suffix allowed: session-YYYY-MM-DD-b.md
+      # ------------------------------------------------------------------------
+      - name: "Check 3 — Filename naming convention"
+        run: |
+          echo "Checking filename: $LOG_FILE"
+          BASENAME=$(basename "$LOG_FILE")
+
+          # Regex breakdown:
+          #   ^session-          must start with "session-"
+          #   [0-9]{4}-          4-digit year
+          #   (0[1-9]|1[0-2])-   valid month (01–12)
+          #   (0[1-9]|[12][0-9]|3[01])  valid day (01–31)
+          #   (-[a-z])?          optional single-letter suffix (e.g. -b)
+          #   \.md$              must end with .md
+          if ! echo "$BASENAME" | grep -qE \
+            '^session-[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])(-[a-z])?\.md$'; then
+            echo ""
+            echo "❌  CHECK FAILED: Filename does not follow the naming convention."
+            echo ""
+            echo "    Received : $BASENAME"
+            echo "    Expected : session-YYYY-MM-DD.md"
+            echo "    Example  : session-2026-06-05.md"
+            echo "    Same-day : session-2026-06-05-b.md"
+            exit 1
+          fi
+
+          echo "✅  Filename convention is valid."
+
+      # ------------------------------------------------------------------------
+      # STEP 5 ─ Check required frontmatter fields and body sections
+      #
+      # KEY CONCEPT ─ We run Python directly in a workflow step using the
+      # `python3` interpreter that comes pre-installed on ubuntu-latest.
+      # No pip install needed — we use only the standard library.
+      #
+      # The `python3 - "$LOG_FILE" << 'PYEOF' ... PYEOF` pattern is a bash
+      # "here-document": the Python script is written inline between the
+      # PYEOF markers, and $LOG_FILE is passed as a command-line argument
+      # (sys.argv[1] in Python).
+      #
+      # Required YAML frontmatter fields:
+      #   session_id, date, baker, hypothesis, temperature, duration
+      #
+      # Required Markdown body sections:
+      #   ## Ingredients, ## Procedure, ## Observed Results, ## Conclusions
+      # ------------------------------------------------------------------------
+      - name: "Check 4 — Log file structure"
+        run: |
+          python3 - "$LOG_FILE" << 'PYEOF'
+          import sys
+          import re
+
+          filepath = sys.argv[1]
+          print(f"Checking file: {filepath}\n")
+
+          with open(filepath, encoding="utf-8") as fh:
+              content = fh.read()
+
+          errors = []
+
+          # ── Check YAML frontmatter block ──────────────────────────────────
+          if not content.startswith("---"):
+              errors.append("No YAML frontmatter found — file must start with ---")
+              frontmatter = ""
+          else:
+              try:
+                  fm_end = content.index("---", 3)
+                  frontmatter = content[3:fm_end]
+              except ValueError:
+                  errors.append("Frontmatter block is not closed — add a closing --- line")
+                  frontmatter = ""
+
+          # ── Check required frontmatter fields ─────────────────────────────
+          required_fields = [
+              "session_id",
+              "date",
+              "baker",
+              "hypothesis",
+              "temperature",
+              "duration",
+          ]
+          for field in required_fields:
+              if not re.search(rf"^{field}\s*:", frontmatter, re.MULTILINE):
+                  errors.append(f"Missing frontmatter field: '{field}'")
+
+          # ── Check required body sections ──────────────────────────────────
+          required_sections = [
+              "## Ingredients",
+              "## Procedure",
+              "## Observed Results",
+              "## Conclusions",
+          ]
+          for section in required_sections:
+              if section not in content:
+                  errors.append(f"Missing section: '{section}'")
+
+          # ── Report ────────────────────────────────────────────────────────
+          if errors:
+              print("❌  CHECK FAILED: Log file structure is invalid.\n")
+              for e in errors:
+                  print(f"    • {e}")
+              print("\n    See logs/session-2026-05-28.md for a valid example.")
+              sys.exit(1)
+
+          print("✅  All required fields and sections are present.")
+          PYEOF

@@ -1,0 +1,138 @@
+# ==============================================================================
+# WORKFLOW: Deploy Baking Lab to GitHub Pages
+# ==============================================================================
+#
+# This workflow runs every time a commit lands on the main branch — including
+# when a Pull Request is merged.
+#
+# It does two things:
+#   1. Regenerates docs/index.html from all session logs in logs/
+#   2. Commits and pushes the updated HTML back to the repository
+#
+# GitHub Pages then serves docs/index.html automatically from the main branch.
+#
+# KEY CONCEPT ─ The difference between the two workflows in this repo:
+#   validate-pr.yml  →  runs BEFORE merge (on pull_request events)
+#   deploy-pages.yml →  runs AFTER merge  (on push to main)
+#
+# Together they form a CI/CD pipeline:
+#   CI = Continuous Integration  (validate → catch problems early)
+#   CD = Continuous Deployment   (deploy   → publish automatically)
+# ==============================================================================
+
+name: Deploy Baking Lab Pages
+
+# ------------------------------------------------------------------------------
+# TRIGGER
+#
+# KEY CONCEPT ─ `push` to a branch fires this workflow whenever commits
+# land on main, whether pushed directly or arrived via a merged PR.
+#
+# We also add a `paths` filter: only re-deploy when something meaningful
+# changed (a log file, the script, or this workflow itself). Commits that
+# only touch the auto-generated docs/index.html won't re-trigger the deploy
+# — preventing an infinite loop.
+# ------------------------------------------------------------------------------
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "logs/**"
+      - "scripts/generate_index.py"
+      - ".github/workflows/deploy-pages.yml"
+
+# ------------------------------------------------------------------------------
+# PERMISSIONS
+#
+# KEY CONCEPT ─ By default, the GITHUB_TOKEN (the automatic credential
+# GitHub gives every workflow run) has read-only access to the repository.
+# We need `contents: write` so this workflow can commit the regenerated
+# docs/index.html back to the repo.
+#
+# Principle of least privilege: only grant the permissions you actually need.
+# ------------------------------------------------------------------------------
+permissions:
+  contents: write
+
+jobs:
+
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # ------------------------------------------------------------------------
+      # STEP 1 ─ Check out the repository
+      #
+      # Same as in validate-pr.yml. We need fetch-depth: 0 so the bot commit
+      # we make later has access to the full history and doesn't accidentally
+      # reset anything.
+      # ------------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ------------------------------------------------------------------------
+      # STEP 2 ─ Set up Python
+      #
+      # KEY CONCEPT ─ `actions/setup-python@v5` is a pre-built action that
+      # installs a specific Python version on the runner. We pin to 3.12 for
+      # reproducibility — the same Python version always runs the script,
+      # regardless of what the runner's default happens to be.
+      #
+      # Our generate_index.py uses only the standard library, so no
+      # `pip install` step is needed.
+      # ------------------------------------------------------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # ------------------------------------------------------------------------
+      # STEP 3 ─ Generate docs/index.html
+      #
+      # KEY CONCEPT ─ `env:` sets environment variables that are available
+      # only for this step. `${{ github.repository }}` is a "context
+      # expression" — GitHub fills it in automatically at runtime with the
+      # actual owner/repo-name (e.g. "gerry/gerrys-baking-lab").
+      #
+      # We pass it to the Python script so it can build correct GitHub links
+      # without hardcoding the repository name.
+      # ------------------------------------------------------------------------
+      - name: Generate docs/index.html
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python3 scripts/generate_index.py
+
+      # ------------------------------------------------------------------------
+      # STEP 4 ─ Commit and push updated index.html
+      #
+      # KEY CONCEPT ─ We use the `github-actions[bot]` identity for automated
+      # commits. This is a convention that makes it easy to identify bot
+      # commits in the history.
+      #
+      # `[skip ci]` in the commit message is a convention recognized by
+      # GitHub Actions: it tells GitHub NOT to trigger new workflow runs for
+      # this commit, preventing an infinite deploy loop.
+      #
+      # `git diff --cached --quiet` checks whether the staged file actually
+      # changed. If docs/index.html is identical to what's already in the repo
+      # (e.g. the push only touched a workflow file), we skip the commit
+      # entirely rather than creating a meaningless empty commit.
+      # ------------------------------------------------------------------------
+      - name: Commit and push updated index.html
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add docs/index.html
+
+          if git diff --cached --quiet; then
+            echo "docs/index.html is already up to date — nothing to commit."
+          else
+            git commit -m "chore: regenerate index.html [skip ci]"
+            git push
+            echo "✅  docs/index.html updated and pushed to main."
+          fi

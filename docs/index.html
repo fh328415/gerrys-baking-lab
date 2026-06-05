@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gerry's Baking Lab — Session Index</title>
+  <style>
+    /* ── Reset & base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #fdf6ec;
+      color: #2d2d2d;
+      line-height: 1.6;
+      padding: 2.5rem 1rem;
+    }
+
+    /* ── Layout ── */
+    .container { max-width: 980px; margin: 0 auto; }
+
+    /* ── Header ── */
+    header { margin-bottom: 2.5rem; }
+
+    header h1 {
+      font-size: 2rem;
+      color: #7b3f00;
+      letter-spacing: -0.5px;
+    }
+
+    header p { color: #666; margin-top: 0.35rem; font-size: 1rem; }
+
+    .badge {
+      display: inline-block;
+      margin-top: 0.75rem;
+      background: #7b3f00;
+      color: #fff;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.65rem;
+      border-radius: 999px;
+      letter-spacing: 0.4px;
+      font-weight: 500;
+    }
+
+    /* ── Table ── */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 10px;
+      box-shadow: 0 2px 14px rgba(0, 0, 0, 0.08);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+    }
+
+    thead tr { background: #7b3f00; color: #fff; }
+
+    thead th {
+      padding: 0.8rem 1.1rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.8125rem;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      white-space: nowrap;
+    }
+
+    tbody tr { border-bottom: 1px solid #f0e6d6; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #fdf0e0; transition: background 0.1s; }
+
+    td {
+      padding: 0.8rem 1.1rem;
+      font-size: 0.9375rem;
+      vertical-align: top;
+    }
+
+    td.date   { white-space: nowrap; color: #555; font-variant-numeric: tabular-nums; }
+    td.baker  { white-space: nowrap; font-weight: 500; }
+    td.hyp    { color: #444; font-style: italic; }
+
+    td.link a {
+      color: #b85c00;
+      text-decoration: none;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    td.link a:hover { text-decoration: underline; }
+
+    /* ── Footer ── */
+    footer {
+      margin-top: 2rem;
+      font-size: 0.8125rem;
+      color: #aaa;
+      text-align: center;
+    }
+    footer a { color: #b85c00; text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <header>
+      <h1>🍪 Gerry's Baking Lab</h1>
+      <p>A scientific record of chocolate chip cookie experiments.</p>
+      <span class="badge">Powered by GitHub Actions</span>
+    </header>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Baker</th>
+            <th>Hypothesis</th>
+            <th>Log</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="date">2026-04-10</td>
+            <td class="baker">María González</td>
+            <td class="hyp">Brown sugar produces chewier cookies than white sugar due to its hygroscopic and molasses properties</td>
+            <td class="link"><a href="https://github.com/your-username/gerrys-baking-lab/blob/main/logs/session-2026-04-10.md" target="_blank" rel="noopener">View Log →</a></td>
+          </tr>
+          <tr>
+            <td class="date">2026-04-18</td>
+            <td class="baker">James Chen</td>
+            <td class="hyp">Resting cookie dough in the refrigerator for 48 hours improves flavor complexity through enzymatic activity and Maillard precursor development</td>
+            <td class="link"><a href="https://github.com/your-username/gerrys-baking-lab/blob/main/logs/session-2026-04-18.md" target="_blank" rel="noopener">View Log →</a></td>
+          </tr>
+          <tr>
+            <td class="date">2026-04-25</td>
+            <td class="baker">Priya Patel</td>
+            <td class="hyp">Adding 2 tablespoons of cornstarch to the flour produces a softer, more tender crumb by diluting gluten development</td>
+            <td class="link"><a href="https://github.com/your-username/gerrys-baking-lab/blob/main/logs/session-2026-04-25.md" target="_blank" rel="noopener">View Log →</a></td>
+          </tr>
+          <tr>
+            <td class="date">2026-05-03</td>
+            <td class="baker">Thomas Müller</td>
+            <td class="hyp">Browning the butter before mixing increases Maillard flavor compounds and produces nuttier, more complex cookies</td>
+            <td class="link"><a href="https://github.com/your-username/gerrys-baking-lab/blob/main/logs/session-2026-05-03.md" target="_blank" rel="noopener">View Log →</a></td>
+          </tr>
+          <tr>
+            <td class="date">2026-05-14</td>
+            <td class="baker">Aisha Okonkwo</td>
+            <td class="hyp">Replacing all-purpose flour with bread flour increases chewiness due to higher protein content and a stronger gluten network</td>
+            <td class="link"><a href="https://github.com/your-username/gerrys-baking-lab/blob/main/logs/session-2026-05-14.md" target="_blank" rel="noopener">View Log →</a></td>
+          </tr>
+          <tr>
+            <td class="date">2026-05-28</td>
+            <td class="baker">Gerry</td>
+            <td class="hyp">Combining brown butter, bread flour, and a 48-hour cold rest in a single batch produces the optimal chocolate chip cookie through synergistic interactions</td>
+            <td class="link"><a href="https://github.com/your-username/gerrys-baking-lab/blob/main/logs/session-2026-05-28.md" target="_blank" rel="noopener">View Log →</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <footer>
+      <p>
+        Auto-generated by
+        <a href="https://github.com/your-username/gerrys-baking-lab/actions" target="_blank" rel="noopener">GitHub Actions</a>
+        &mdash; last updated 2026-06-05 14:05 UTC
+      </p>
+    </footer>
+
+  </div>
+</body>
+</html>
