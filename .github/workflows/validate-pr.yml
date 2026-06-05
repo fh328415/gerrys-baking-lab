@@ -139,7 +139,7 @@ jobs:
             "origin/${{ github.base_ref }}" HEAD -- 'logs/')
 
           echo "Files added inside logs/:"
-          echo "${ADDED_LOGS:-  (none)"}"
+          echo "${ADDED_LOGS:-  (none)}"
           echo ""
 
           # Count non-empty lines (|| true prevents exit code 1 when count is 0)
